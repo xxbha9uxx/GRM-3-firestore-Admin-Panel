@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grievance Redressal Admin</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-firestore-compat.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f5f3ff;
+            overflow-x: hidden;
+        }
+        .loader {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        .form-input {
+            transition: all 0.2s ease-in-out;
+        }
+        .form-input:focus-within {
+             box-shadow: 0 0 0 2px #a78bfa;
+             border-color: #a78bfa;
+        }
+        .form-input-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+        .sidebar {
+            transition: all 0.3s ease;
+            width: 220px;
+        }
+        .sidebar-item {
+            transition: all 0.2s ease;
+        }
+        .sidebar-item:hover {
+            background-color: #ede9fe;
+        }
+        .sidebar-item.active {
+            background-color: #ddd6fe;
+            border-left: 4px solid #7c3aed;
+        }
+        .dialog-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .dialog-content {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .grievance-details {
+            background-color: #f8fafc;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .grievance-details-label {
+            font-weight: 500;
+            color: #4b5563;
+            margin-bottom: 0.25rem;
+        }
+        .grievance-details-value {
+            color: #1f2937;
+            margin-bottom: 0.75rem;
+        }
+        .table-responsive {
+            overflow-x: auto;
+            max-width: calc(100vw - 240px);
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+    <!-- Login Page -->
+    <div id="login-page" class="min-h-screen flex items-center justify-center bg-gradient-to-r from-purple-100 to-indigo-100 p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-purple-700 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+                    </svg>
+                    Admin Portal
+                </h1>
+                <p class="text-gray-600 mt-2">Access the grievance management system</p>
+            </div>
+            <form id="login-form" class="space-y-6">
+                <div class="relative">
+                    <span class="form-input-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                        </svg>
+                    </span>
+                    <input type="password" id="admin-password" placeholder="Enter admin password" required class="form-input w-full pl-10 p-3 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-md shadow-md transition-all transform hover:scale-[1.02]">
+                    Login
+                </button>
+            </form>
+            <div id="login-error" class="hidden mt-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-md"></div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="dashboard" class="hidden min-h-screen flex flex-col md:flex-row">
+        <!-- Sidebar -->
+        <div class="sidebar bg-white shadow-md">
+            <div class="p-4 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-purple-700 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+                    </svg>
+                    Admin Panel
+                </h2>
+            </div>
+            <nav class="p-4">
+                <ul class="space-y-2">
+                    <li>
+                        <a href="#" id="dashboard-tab" class="sidebar-item active flex items-center p-3 rounded-md text-gray-700 hover:text-purple-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" id="new-grievances-tab" class="sidebar-item flex items-center p-3 rounded-md text-gray-700 hover:text-purple-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            New Grievances
+                            <span id="pending-count" class="ml-auto bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-1 rounded-full">0</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" id="analytics-tab" class="sidebar-item flex items-center p-3 rounded-md text-gray-700 hover:text-purple-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Analytics
+                        </a>
+                    </li>
+                    <li class="mt-8 pt-4 border-t border-gray-200">
+                        <a href="#" id="logout-btn" class="flex items-center p-3 rounded-md text-gray-700 hover:text-red-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Logout
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-4 md:p-6 overflow-x-hidden">
+            <!-- Header with Refresh Button -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h1 id="page-title" class="text-2xl font-bold text-gray-800">Dashboard</h1>
+                <div class="flex items-center gap-4 w-full md:w-auto">
+                    <button id="refresh-btn" class="flex items-center gap-2 bg-white hover:bg-gray-100 text-gray-700 font-medium py-2 px-4 border border-gray-300 rounded-md shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Refresh
+                    </button>
+                    <div class="relative flex-1 md:flex-none md:w-80">
+                        <span class="form-input-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </span>
+                        <input type="text" id="search-input" placeholder="Search by name, email, phone or roll number..." class="form-input pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm w-full">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div id="dashboard-content" class="space-y-6">
+                <!-- Filter Bar -->
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <span class="font-medium">Filter by Status:</span>
+                        <div class="flex flex-wrap gap-2">
+                            <button data-status="all" class="filter-btn active px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">All</button>
+                            <button data-status="Pending" class="filter-btn px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">Pending</button>
+                            <button data-status="In Review" class="filter-btn px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">In Review</button>
+                            <button data-status="On Hold" class="filter-btn px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800">On Hold</button>
+                            <button data-status="Resolved" class="filter-btn px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">Resolved</button>
+                            <button data-status="Dismissed" class="filter-btn px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">Dismissed</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow flex items-center">
+                        <div class="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Total Grievances</p>
+                            <h3 id="total-grievances" class="text-2xl font-bold">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow flex items-center">
+                        <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Pending</p>
+                            <h3 id="pending-grievances" class="text-2xl font-bold">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow flex items-center">
+                        <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Resolved</p>
+                            <h3 id="resolved-grievances" class="text-2xl font-bold">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grievances Table -->
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No.</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="grievances-table-body" class="bg-white divide-y divide-gray-200">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="loading-indicator" class="p-4 text-center">
+                        <div class="inline-block loader"></div>
+                        <span class="ml-2 text-gray-600">Loading grievances...</span>
+                    </div>
+                    <div id="no-results" class="hidden p-8 text-center text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p class="mt-2">No grievances found matching your criteria.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Grievances Content -->
+            <div id="new-grievances-content" class="hidden space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <h1 class="text-2xl font-bold text-gray-800">New Grievances</h1>
+                    <div class="flex items-center gap-4">
+                        <span id="new-grievances-count" class="bg-purple-100 text-purple-800 text-sm font-medium px-3 py-1 rounded-full">0 Pending</span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No.</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="new-grievances-table-body" class="bg-white divide-y divide-gray-200">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="new-loading-indicator" class="p-4 text-center">
+                        <div class="inline-block loader"></div>
+                        <span class="ml-2 text-gray-600">Loading new grievances...</span>
+                    </div>
+                    <div id="new-no-results" class="hidden p-8 text-center text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p class="mt-2">No pending grievances at this time.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Content -->
+            <div id="analytics-content" class="hidden space-y-6">
+                <h1 class="text-2xl font-bold text-gray-800">Analytics</h1>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow flex items-center">
+                        <div class="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Total Grievances</p>
+                            <h3 id="analytics-total" class="text-2xl font-bold">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow flex items-center">
+                        <div class="p-3 rounded-full bg-yellow-100 text-yellow-600 mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Pending</p>
+                            <h3 id="analytics-pending" class="text-2xl font-bold">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow flex items-center">
+                        <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Resolved</p>
+                            <h3 id="analytics-resolved" class="text-2xl font-bold">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 1 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Status-wise Distribution
+                        </h3>
+                        <div class="h-64">
+                            <canvas id="status-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Type-wise Distribution
+                        </h3>
+                        <div class="h-64">
+                            <canvas id="type-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row 2 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Course-wise Distribution
+                        </h3>
+                        <div class="h-64">
+                            <canvas id="course-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Year-wise Distribution
+                        </h3>
+                        <div class="h-64">
+                            <canvas id="year-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Grievance Dialog -->
+    <div id="edit-dialog" class="hidden fixed inset-0 z-50 overflow-y-auto dialog-overlay">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="dialog-content inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                <div class="bg-white px-6 pt-6 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-purple-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-xl leading-6 font-bold text-purple-800" id="modal-title">
+                                Update Grievance Status
+                            </h3>
+                            <div class="mt-6 space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="grievance-details">
+                                        <div class="grievance-details-label">Grievance ID</div>
+                                        <div id="edit-grievance-id" class="grievance-details-value font-medium"></div>
+                                    </div>
+                                    <div class="grievance-details">
+                                        <div class="grievance-details-label">Name</div>
+                                        <div id="edit-name" class="grievance-details-value font-medium"></div>
+                                    </div>
+                                    <div class="grievance-details">
+                                        <div class="grievance-details-label">Roll Number</div>
+                                        <div id="edit-roll" class="grievance-details-value"></div>
+                                    </div>
+                                    <div class="grievance-details">
+                                        <div class="grievance-details-label">Email</div>
+                                        <div id="edit-email" class="grievance-details-value"></div>
+                                    </div>
+                                    <div class="grievance-details">
+                                        <div class="grievance-details-label">Phone</div>
+                                        <div id="edit-phone" class="grievance-details-value"></div>
+                                    </div>
+                                    <div class="grievance-details">
+                                        <div class="grievance-details-label">Course</div>
+                                        <div id="edit-course" class="grievance-details-value"></div>
+                                    </div>
+                                    <div class="grievance-details">
+                                        <div class="grievance-details-label">Year</div>
+                                        <div id="edit-year" class="grievance-details-value"></div>
+                                    </div>
+                                    <div class="grievance-details">
+                                        <div class="grievance-details-label">Type</div>
+                                        <div id="edit-type" class="grievance-details-value"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="grievance-details">
+                                    <div class="grievance-details-label">Grievance Description</div>
+                                    <div id="edit-description" class="grievance-details-value"></div>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label for="edit-status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                        <select id="edit-status" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 rounded-md shadow-sm">
+                                            <option value="Pending" class="bg-yellow-100 text-yellow-800">Pending</option>
+                                            <option value="In Review" class="bg-orange-100 text-orange-800">In Review</option>
+                                            <option value="On Hold" class="bg-amber-100 text-amber-800">On Hold</option>
+                                            <option value="Resolved" class="bg-green-100 text-green-800">Resolved</option>
+                                            <option value="Dismissed" class="bg-red-100 text-red-800">Dismissed</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Submission Date</label>
+                                        <div id="edit-date" class="mt-1 p-2 bg-gray-50 rounded-md border text-gray-700"></div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label for="edit-response" class="block text-sm font-medium text-gray-700 mb-1">Admin Response</label>
+                                    <textarea id="edit-response" rows="4" class="mt-1 block w-full shadow-sm sm:text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 border border-gray-300 rounded-md p-2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-6 py-4 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" id="save-changes-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-purple-600 text-base font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        Save Changes
+                    </button>
+                    <button type="button" id="cancel-edit-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // FIREBASE CONFIGURATION (same as your frontend)
+        const firebaseConfig = {
+            apiKey: "AIzaSyA5f1Un3BGVYT4ucXUzeMpgGN2sQ1LaKO8",
+            authDomain: "grm-3-firestore.firebaseapp.com",
+            projectId: "grm-3-firestore",
+            storageBucket: "grm-3-firestore.firebasestorage.app",
+            messagingSenderId: "101259019493",
+            appId: "1:101259019493:web:eaf4aeca416cb7cb57400c"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const GRIEVANCES_COLLECTION = 'grievances';
+
+        // DOM Elements
+        const loginPage = document.getElementById('login-page');
+        const dashboard = document.getElementById('dashboard');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const adminPassword = document.getElementById('admin-password');
+        
+        // Dashboard elements
+        const dashboardContent = document.getElementById('dashboard-content');
+        const newGrievancesContent = document.getElementById('new-grievances-content');
+        const analyticsContent = document.getElementById('analytics-content');
+        
+        // Tab buttons
+        const dashboardTab = document.getElementById('dashboard-tab');
+        const newGrievancesTab = document.getElementById('new-grievances-tab');
+        const analyticsTab = document.getElementById('analytics-tab');
+        
+        // Logout button
+        const logoutBtn = document.getElementById('logout-btn');
+        
+        // Search and filter elements
+        const searchInput = document.getElementById('search-input');
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        
+        // Table elements
+        const grievancesTableBody = document.getElementById('grievances-table-body');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const noResults = document.getElementById('no-results');
+        
+        // New grievances table elements
+        const newGrievancesTableBody = document.getElementById('new-grievances-table-body');
+        const newLoadingIndicator = document.getElementById('new-loading-indicator');
+        const newNoResults = document.getElementById('new-no-results');
+        const pendingCount = document.getElementById('pending-count');
+        const newGrievancesCount = document.getElementById('new-grievances-count');
+        
+        // Stats elements
+        const totalGrievances = document.getElementById('total-grievances');
+        const pendingGrievances = document.getElementById('pending-grievances');
+        const resolvedGrievances = document.getElementById('resolved-grievances');
+        
+        // Analytics stats
+        const analyticsTotal = document.getElementById('analytics-total');
+        const analyticsPending = document.getElementById('analytics-pending');
+        const analyticsResolved = document.getElementById('analytics-resolved');
+        
+        // Charts
+        let statusChart, typeChart, courseChart, yearChart;
+        
+        // Edit dialog elements
+        const editDialog = document.getElementById('edit-dialog');
+        const editGrievanceId = document.getElementById('edit-grievance-id');
+        const editName = document.getElementById('edit-name');
+        const editRoll = document.getElementById('edit-roll');
+        const editEmail = document.getElementById('edit-email');
+        const editPhone = document.getElementById('edit-phone');
+        const editCourse = document.getElementById('edit-course');
+        const editYear = document.getElementById('edit-year');
+        const editType = document.getElementById('edit-type');
+        const editDescription = document.getElementById('edit-description');
+        const editDate = document.getElementById('edit-date');
+        const editStatus = document.getElementById('edit-status');
+        const editResponse = document.getElementById('edit-response');
+        const saveChangesBtn = document.getElementById('save-changes-btn');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        
+        // Refresh button
+        const refreshBtn = document.getElementById('refresh-btn');
+        
+        // Current grievance being edited
+        let currentGrievanceId = null;
+        
+        // All grievances data
+        let allGrievances = [];
+        let filteredGrievances = [];
+        
+        // Real-time listener for grievances
+        let grievancesListener = null;
+        
+        // Login functionality
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const password = adminPassword.value.trim();
+            
+            if (password === 'admin123') {
+                loginError.classList.add('hidden');
+                loginPage.classList.add('hidden');
+                dashboard.classList.remove('hidden');
+                setupRealTimeListeners();
+                loadAnalytics();
+            } else {
+                loginError.textContent = 'Invalid password. Please try again.';
+                loginError.classList.remove('hidden');
+            }
+        });
+        
+        // Logout functionality
+        logoutBtn.addEventListener('click', () => {
+            // Unsubscribe from real-time listeners
+            if (grievancesListener) {
+                grievancesListener();
+            }
+            
+            dashboard.classList.add('hidden');
+            loginPage.classList.remove('hidden');
+            adminPassword.value = '';
+        });
+        
+        // Tab switching
+        dashboardTab.addEventListener('click', (e) => {
+            e.preventDefault();
+            setActiveTab('dashboard');
+        });
+        
+        newGrievancesTab.addEventListener('click', (e) => {
+            e.preventDefault();
+            setActiveTab('new-grievances');
+        });
+        
+        analyticsTab.addEventListener('click', (e) => {
+            e.preventDefault();
+            setActiveTab('analytics');
+        });
+        
+        function setActiveTab(tab) {
+            // Update page title
+            const pageTitle = document.getElementById('page-title');
+            
+            // Update sidebar active state
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            if (tab === 'dashboard') {
+                pageTitle.textContent = 'Dashboard';
+                dashboardTab.parentElement.querySelector('.sidebar-item').classList.add('active');
+                dashboardContent.classList.remove('hidden');
+                newGrievancesContent.classList.add('hidden');
+                analyticsContent.classList.add('hidden');
+            } else if (tab === 'new-grievances') {
+                pageTitle.textContent = 'New Grievances';
+                newGrievancesTab.parentElement.querySelector('.sidebar-item').classList.add('active');
+                dashboardContent.classList.add('hidden');
+                newGrievancesContent.classList.remove('hidden');
+                analyticsContent.classList.add('hidden');
+            } else if (tab === 'analytics') {
+                pageTitle.textContent = 'Analytics';
+                analyticsTab.parentElement.querySelector('.sidebar-item').classList.add('active');
+                dashboardContent.classList.add('hidden');
+                newGrievancesContent.classList.add('hidden');
+                analyticsContent.classList.remove('hidden');
+            }
+        }
+        
+        // Search functionality
+        searchInput.addEventListener('input', () => {
+            filterGrievances();
+        });
+        
+        // Filter by status
+        filterButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                filterGrievances();
+            });
+        });
+        
+        // Refresh button
+        refreshBtn.addEventListener('click', () => {
+            if (dashboardContent.classList.contains('hidden') && newGrievancesContent.classList.contains('hidden')) {
+                loadAnalytics();
+            } else if (newGrievancesContent.classList.contains('hidden')) {
+                loadGrievances();
+            } else {
+                loadNewGrievances();
+            }
+        });
+        
+        // Setup real-time listeners
+        function setupRealTimeListeners() {
+            // Main grievances listener
+            grievancesListener = db.collection(GRIEVANCES_COLLECTION)
+                .orderBy('createdAt', 'desc')
+                .onSnapshot((querySnapshot) => {
+                    allGrievances = [];
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        data.id = doc.id;
+                        allGrievances.push(data);
+                    });
+                    
+                    updateStats();
+                    filterGrievances();
+                    loadingIndicator.classList.add('hidden');
+                    
+                    // Also update new grievances if needed
+                    if (!newGrievancesContent.classList.contains('hidden')) {
+                        loadNewGrievances();
+                    }
+                }, (error) => {
+                    console.error("Error getting documents: ", error);
+                    loadingIndicator.classList.add('hidden');
+                    noResults.classList.remove('hidden');
+                    noResults.querySelector('p').textContent = 'Error loading grievances. Please try again.';
+                });
+        }
+        
+        // Load all grievances (initial load)
+        function loadGrievances() {
+            loadingIndicator.classList.remove('hidden');
+            noResults.classList.add('hidden');
+            grievancesTableBody.innerHTML = '';
+            
+            db.collection(GRIEVANCES_COLLECTION).orderBy('createdAt', 'desc').get()
+                .then((querySnapshot) => {
+                    allGrievances = [];
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        data.id = doc.id;
+                        allGrievances.push(data);
+                    });
+                    
+                    updateStats();
+                    filterGrievances();
+                    loadingIndicator.classList.add('hidden');
+                })
+                .catch((error) => {
+                    console.error("Error getting documents: ", error);
+                    loadingIndicator.classList.add('hidden');
+                    noResults.classList.remove('hidden');
+                    noResults.querySelector('p').textContent = 'Error loading grievances. Please try again.';
+                });
+        }
+        
+        // Load new grievances (pending)
+        function loadNewGrievances() {
+            newLoadingIndicator.classList.remove('hidden');
+            newNoResults.classList.add('hidden');
+            newGrievancesTableBody.innerHTML = '';
+            
+            const pendingGrievances = allGrievances.filter(g => g.status === 'Pending');
+            
+            // Update pending count
+            pendingCount.textContent = pendingGrievances.length;
+            newGrievancesCount.textContent = `${pendingGrievances.length} Pending`;
+            
+            if (pendingGrievances.length === 0) {
+                newNoResults.classList.remove('hidden');
+            } else {
+                renderNewGrievancesTable(pendingGrievances);
+            }
+            
+            newLoadingIndicator.classList.add('hidden');
+        }
+        
+        // Load analytics data
+        function loadAnalytics() {
+            db.collection(GRIEVANCES_COLLECTION).get()
+                .then((querySnapshot) => {
+                    const grievances = [];
+                    querySnapshot.forEach((doc) => {
+                        grievances.push(doc.data());
+                    });
+                    
+                    updateAnalyticsStats(grievances);
+                    renderCharts(grievances);
+                })
+                .catch((error) => {
+                    console.error("Error getting documents for analytics: ", error);
+                });
+        }
+        
+        // Filter grievances based on search and status
+        function filterGrievances() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const activeFilter = document.querySelector('.filter-btn.active');
+            const statusFilter = activeFilter ? activeFilter.dataset.status : 'all';
+            
+            filteredGrievances = allGrievances.filter(grievance => {
+                // Search filter - now includes multiple fields
+                const matchesSearch = 
+                    grievance.grievanceId.toLowerCase().includes(searchTerm) ||
+                    grievance.name.toLowerCase().includes(searchTerm) ||
+                    grievance.rollNumber.toLowerCase().includes(searchTerm) ||
+                    (grievance.mobile && grievance.mobile.toLowerCase().includes(searchTerm)) ||
+                    (grievance.email && grievance.email.toLowerCase().includes(searchTerm));
+                
+                // Status filter
+                const matchesStatus = statusFilter === 'all' || grievance.status === statusFilter;
+                
+                return matchesSearch && matchesStatus;
+            });
+            
+            renderGrievancesTable(filteredGrievances);
+        }
+        
+        // Render main grievances table
+        function renderGrievancesTable(grievances) {
+            grievancesTableBody.innerHTML = '';
+            
+            if (grievances.length === 0) {
+                noResults.classList.remove('hidden');
+                return;
+            }
+            
+            noResults.classList.add('hidden');
+            
+            grievances.forEach(grievance => {
+                const row = document.createElement('tr');
+                
+                // Format date
+                let submissionDate = 'N/A';
+                if (grievance.timestamp) {
+                    const date = grievance.timestamp.toDate ? grievance.timestamp.toDate() : new Date(grievance.timestamp);
+                    submissionDate = date.toLocaleString();
+                }
+                
+                // Status badge
+                let statusClass = '';
+                switch(grievance.status) {
+                    case 'Pending':
+                        statusClass = 'bg-yellow-100 text-yellow-800';
+                        break;
+                    case 'In Review':
+                        statusClass = 'bg-orange-100 text-orange-800';
+                        break;
+                    case 'On Hold':
+                        statusClass = 'bg-amber-100 text-amber-800';
+                        break;
+                    case 'Resolved':
+                        statusClass = 'bg-green-100 text-green-800';
+                        break;
+                    case 'Dismissed':
+                        statusClass = 'bg-red-100 text-red-800';
+                        break;
+                    default:
+                        statusClass = 'bg-gray-100 text-gray-800';
+                }
+                
+                row.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${grievance.grievanceId}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${grievance.name}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${grievance.rollNumber}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${grievance.email || 'N/A'}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${grievance.mobile || 'N/A'}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${grievance.course}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${grievance.grievanceType}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${submissionDate}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <span class="status-badge ${statusClass}">${grievance.status}</span>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button class="edit-btn text-purple-600 hover:text-purple-900" data-id="${grievance.grievanceId}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                
+                grievancesTableBody.appendChild(row);
+            });
+            
+            // Add event listeners to edit buttons
+            document.querySelectorAll('.edit-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const grievanceId = button.dataset.id;
+                    openEditDialog(grievanceId);
+                });
+            });
+        }
+        
+        // Render new grievances table
+        function renderNewGrievancesTable(grievances) {
+            newGrievancesTableBody.innerHTML = '';
+            
+            grievances.forEach(grievance => {
+                const row = document.createElement('tr');
+                
+                // Format date
+                let submissionDate = 'N/A';
+                if (grievance.timestamp) {
+                    const date = grievance.timestamp.toDate ? grievance.timestamp.toDate() : new Date(grievance.timestamp);
+                    submissionDate = date.toLocaleString();
+                }
+                
+                row.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${grievance.grievanceId}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${grievance.name}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${grievance.rollNumber}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${grievance.email || 'N/A'}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${grievance.mobile || 'N/A'}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${grievance.grievanceType}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${submissionDate}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button class="edit-btn text-purple-600 hover:text-purple-900" data-id="${grievance.grievanceId}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                
+                newGrievancesTableBody.appendChild(row);
+            });
+            
+            // Add event listeners to edit buttons
+            document.querySelectorAll('.edit-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const grievanceId = button.dataset.id;
+                    openEditDialog(grievanceId);
+                });
+            });
+        }
+        
+        // Open edit dialog
+        function openEditDialog(grievanceId) {
+            const grievance = allGrievances.find(g => g.grievanceId === grievanceId);
+            if (!grievance) return;
+            
+            currentGrievanceId = grievanceId;
+            editGrievanceId.textContent = grievance.grievanceId;
+            editName.textContent = grievance.name;
+            editRoll.textContent = grievance.rollNumber;
+            editEmail.textContent = grievance.email || 'N/A';
+            editPhone.textContent = grievance.mobile || 'N/A';
+            editCourse.textContent = grievance.course;
+            editYear.textContent = grievance.year;
+            editType.textContent = grievance.grievanceType;
+            editDescription.textContent = grievance.description;
+            
+            // Format date
+            let submissionDate = 'N/A';
+            if (grievance.timestamp) {
+                const date = grievance.timestamp.toDate ? grievance.timestamp.toDate() : new Date(grievance.timestamp);
+                submissionDate = date.toLocaleString();
+            }
+            editDate.textContent = submissionDate;
+            
+            editStatus.value = grievance.status;
+            editResponse.value = grievance.adminResponse || '';
+            
+            editDialog.classList.remove('hidden');
+        }
+        
+        // Close edit dialog
+        function closeEditDialog() {
+            editDialog.classList.add('hidden');
+            currentGrievanceId = null;
+        }
+        
+        // Save changes from edit dialog
+        saveChangesBtn.addEventListener('click', () => {
+            if (!currentGrievanceId) return;
+            
+            const updates = {
+                status: editStatus.value,
+                adminResponse: editResponse.value,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            db.collection(GRIEVANCES_COLLECTION).doc(currentGrievanceId).update(updates)
+                .then(() => {
+                    closeEditDialog();
+                    
+                    // If we're on the new grievances page and status changed from Pending, refresh
+                    if (!newGrievancesContent.classList.contains('hidden') && editStatus.value !== 'Pending') {
+                        loadNewGrievances();
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error updating document: ", error);
+                    alert('Failed to update grievance. Please try again.');
+                });
+        });
+        
+        // Cancel edit dialog
+        cancelEditBtn.addEventListener('click', closeEditDialog);
+        
+        // Update stats counters
+        function updateStats() {
+            totalGrievances.textContent = allGrievances.length;
+            
+            const pendingCount = allGrievances.filter(g => g.status === 'Pending').length;
+            const resolvedCount = allGrievances.filter(g => g.status === 'Resolved').length;
+            
+            pendingGrievances.textContent = pendingCount;
+            resolvedGrievances.textContent = resolvedCount;
+        }
+        
+        // Update analytics stats
+        function updateAnalyticsStats(grievances) {
+            analyticsTotal.textContent = grievances.length;
+            
+            const pendingCount = grievances.filter(g => g.status === 'Pending').length;
+            const resolvedCount = grievances.filter(g => g.status === 'Resolved').length;
+            
+            analyticsPending.textContent = pendingCount;
+            analyticsResolved.textContent = resolvedCount;
+        }
+        
+        // Render charts
+        function renderCharts(grievances) {
+            // Status chart
+            const statusCounts = {
+                'Pending': 0,
+                'In Review': 0,
+                'On Hold': 0,
+                'Resolved': 0,
+                'Dismissed': 0
+            };
+            
+            grievances.forEach(g => {
+                statusCounts[g.status] = (statusCounts[g.status] || 0) + 1;
+            });
+            
+            if (statusChart) statusChart.destroy();
+            const statusCtx = document.getElementById('status-chart').getContext('2d');
+            statusChart = new Chart(statusCtx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: [
+                            '#fef08a', // Pending - yellow
+                            '#fed7aa', // In Review - orange
+                            '#fcd34d', // On Hold - amber
+                            '#bbf7d0', // Resolved - green
+                            '#fecaca'  // Dismissed - red
+                        ],
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        }
+                    }
+                }
+            });
+            
+            // Type chart
+            const typeCounts = {};
+            grievances.forEach(g => {
+                typeCounts[g.grievanceType] = (typeCounts[g.grievanceType] || 0) + 1;
+            });
+            
+            if (typeChart) typeChart.destroy();
+            const typeCtx = document.getElementById('type-chart').getContext('2d');
+            typeChart = new Chart(typeCtx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(typeCounts),
+                    datasets: [{
+                        data: Object.values(typeCounts),
+                        backgroundColor: [
+                            '#ddd6fe', // purple
+                            '#a5b4fc', // indigo
+                            '#86efac', // green
+                            '#fca5a5', // red
+                            '#fcd34d', // amber
+                            '#67e8f9', // cyan
+                            '#f9a8d4'  // pink
+                        ],
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        }
+                    }
+                }
+            });
+            
+            // Course chart
+            const courseCounts = {};
+            grievances.forEach(g => {
+                courseCounts[g.course] = (courseCounts[g.course] || 0) + 1;
+            });
+            
+            // Sort courses by count (descending) and take top 5
+            const sortedCourses = Object.entries(courseCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+            
+            const otherCoursesCount = Object.values(courseCounts).reduce((sum, count, index) => {
+                return index >= 5 ? sum + count : sum;
+            }, 0);
+            
+            if (otherCoursesCount > 0) {
+                sortedCourses.push(['Other', otherCoursesCount]);
+            }
+            
+            if (courseChart) courseChart.destroy();
+            const courseCtx = document.getElementById('course-chart').getContext('2d');
+            courseChart = new Chart(courseCtx, {
+                type: 'pie',
+                data: {
+                    labels: sortedCourses.map(item => item[0]),
+                    datasets: [{
+                        data: sortedCourses.map(item => item[1]),
+                        backgroundColor: [
+                            '#c7d2fe', // light purple
+                            '#a5b4fc', // purple
+                            '#818cf8', // darker purple
+                            '#6366f1', // indigo
+                            '#4f46e5', // darker indigo
+                            '#3730a3'  // darkest indigo
+                        ],
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        }
+                    }
+                }
+            });
+            
+            // Year chart
+            const yearCounts = {
+                'I': 0,
+                'II': 0,
+                'III': 0,
+                'IV': 0
+            };
+            
+            grievances.forEach(g => {
+                if (yearCounts.hasOwnProperty(g.year)) {
+                    yearCounts[g.year]++;
+                }
+            });
+            
+            if (yearChart) yearChart.destroy();
+            const yearCtx = document.getElementById('year-chart').getContext('2d');
+            yearChart = new Chart(yearCtx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(yearCounts),
+                    datasets: [{
+                        data: Object.values(yearCounts),
+                        backgroundColor: [
+                            '#ddd6fe', // lightest
+                            '#c4b5fd', 
+                            '#a78bfa', 
+                            '#8b5cf6'  // darkest
+                        ],
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
